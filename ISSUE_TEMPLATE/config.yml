@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discord Community
+    url: https://discord.gg/gopteran
+    about: Join our Discord server for general questions, discussions, and community support
+  - name: 🗣️ GitHub Discussions
+    url: https://github.com/orgs/gopteran/discussions
+    about: Ask questions, share ideas, and discuss Gopteran with the community
+  - name: 📚 Documentation
+    url: https://docs.gopteran.dev
+    about: Check our comprehensive documentation for guides, tutorials, and API references
+  - name: 🛡️ Security Issues
+    url: mailto:security@gopteran.dev
+    about: Report security vulnerabilities privately via email (DO NOT create public issues)
+  - name: 📧 General Contact
+    url: mailto:hello@gopteran.dev
+    about: Contact us directly for general inquiries, partnerships, or other matters

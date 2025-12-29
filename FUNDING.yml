@@ -1,0 +1,26 @@
+# # Funding Configuration for Gopteran 🦅
+# # 
+# # Support the development of the Gopteran ecosystem through various funding platforms.
+# # Your support helps us maintain and improve our open-source tools and services.
+
+# # GitHub Sponsors (preferred method)
+# github: [gopteran]
+
+# # Open Collective
+# open_collective: gopteran
+
+# # Ko-fi
+# ko_fi: gopteran
+
+# # Patreon
+# patreon: gopteran
+
+# # Custom funding URLs
+# custom: [
+#   "https://gopteran.dev/sponsor",
+#   "https://paypal.me/gopteran"
+# ]
+
+# # Cryptocurrency donations
+# # Bitcoin: bc1qgopteranexampleaddress
+# # Ethereum: 0xGopteranExampleAddress

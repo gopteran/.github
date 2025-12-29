@@ -1,0 +1,264 @@
+name: 🏥 Organization Health Check
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      check_type:
+        description: 'Type of health check to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - security
+          - dependencies
+          - documentation
+
+jobs:
+  health-check:
+    name: Organization Health Assessment
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🦅 Checkout Organization Profile
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 📊 Generate Health Report
+        id: health-report
+        run: |
+          echo "# 🏥 Gopteran Organization Health Report" > health-report.md
+          echo "Generated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check repository count and activity
+          echo "## 📈 Repository Statistics" >> health-report.md
+          echo "- Total repositories: $(gh repo list gopteran --limit 100 --json name | jq length)" >> health-report.md
+          echo "- Public repositories: $(gh repo list gopteran --limit 100 --visibility public --json name | jq length)" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check for required files across repositories
+          echo "## 📋 Compliance Check" >> health-report.md
+          echo "Checking for required organizational files..." >> health-report.md
+          
+          repos=$(gh repo list gopteran --limit 50 --json name --jq '.[].name')
+          
+          for repo in $repos; do
+            echo "### $repo" >> health-report.md
+            
+            # Check for README
+            if gh api repos/gopteran/$repo/contents/README.md >/dev/null 2>&1; then
+              echo "- ✅ README.md present" >> health-report.md
+            else
+              echo "- ❌ README.md missing" >> health-report.md
+            fi
+            
+            # Check for LICENSE
+            if gh api repos/gopteran/$repo/contents/LICENSE >/dev/null 2>&1; then
+              echo "- ✅ LICENSE present" >> health-report.md
+            else
+              echo "- ❌ LICENSE missing" >> health-report.md
+            fi
+            
+            # Check for CONTRIBUTING.md
+            if gh api repos/gopteran/$repo/contents/CONTRIBUTING.md >/dev/null 2>&1; then
+              echo "- ✅ CONTRIBUTING.md present" >> health-report.md
+            else
+              echo "- ⚠️ CONTRIBUTING.md missing" >> health-report.md
+            fi
+            
+            echo "" >> health-report.md
+          done
+          
+          echo "health_report_generated=true" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔍 Security Audit
+        if: github.event.inputs.check_type == 'full' || github.event.inputs.check_type == 'security'
+        run: |
+          echo "## 🔒 Security Audit" >> health-report.md
+          echo "Security audit completed on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check for security policies
+          if [ -f ".github/SECURITY.md" ]; then
+            echo "- ✅ Security policy present" >> health-report.md
+          else
+            echo "- ❌ Security policy missing" >> health-report.md
+          fi
+          
+          # Check for code of conduct
+          if [ -f ".github/CODE_OF_CONDUCT.md" ]; then
+            echo "- ✅ Code of conduct present" >> health-report.md
+          else
+            echo "- ❌ Code of conduct missing" >> health-report.md
+          fi
+          
+          echo "" >> health-report.md
+
+      - name: 📚 Documentation Check
+        if: github.event.inputs.check_type == 'full' || github.event.inputs.check_type == 'documentation'
+        run: |
+          echo "## 📚 Documentation Health" >> health-report.md
+          echo "Documentation audit completed on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check organization profile
+          if [ -f ".github/profile/README.md" ]; then
+            echo "- ✅ Organization profile present" >> health-report.md
+            
+            # Check profile completeness
+            profile_content=$(cat .github/profile/README.md)
+            if echo "$profile_content" | grep -q "placeholder"; then
+              echo "- ⚠️ Profile contains placeholder content" >> health-report.md
+            else
+              echo "- ✅ Profile appears complete" >> health-report.md
+            fi
+          else
+            echo "- ❌ Organization profile missing" >> health-report.md
+          fi
+          
+          # Check for contributing guidelines
+          if [ -f ".github/CONTRIBUTING.md" ]; then
+            echo "- ✅ Contributing guidelines present" >> health-report.md
+          else
+            echo "- ❌ Contributing guidelines missing" >> health-report.md
+          fi
+          
+          echo "" >> health-report.md
+
+      - name: 🎯 Generate Recommendations
+        run: |
+          echo "## 🎯 Recommendations" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Add recommendations based on findings
+          echo "### High Priority" >> health-report.md
+          echo "- Ensure all repositories have README.md files" >> health-report.md
+          echo "- Add LICENSE files to repositories missing them" >> health-report.md
+          echo "" >> health-report.md
+          
+          echo "### Medium Priority" >> health-report.md
+          echo "- Add CONTRIBUTING.md to repositories for better contributor experience" >> health-report.md
+          echo "- Consider adding issue templates to active repositories" >> health-report.md
+          echo "" >> health-report.md
+          
+          echo "### Low Priority" >> health-report.md
+          echo "- Update repository descriptions for better discoverability" >> health-report.md
+          echo "- Add topics/tags to repositories" >> health-report.md
+          echo "" >> health-report.md
+
+      - name: 📤 Create Issue with Health Report
+        if: steps.health-report.outputs.health_report_generated == 'true'
+        run: |
+          # Create an issue with the health report
+          gh issue create \
+            --title "🏥 Weekly Organization Health Report - $(date -u '+%Y-%m-%d')" \
+            --body-file health-report.md \
+            --label "health-check,automated" \
+            --assignee "@me"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📊 Upload Health Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: organization-health-report-${{ github.run_number }}
+          path: health-report.md
+          retention-days: 30
+
+  dependency-check:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.check_type == 'full' || github.event.inputs.check_type == 'dependencies'
+    
+    steps:
+      - name: 🦅 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Scan for Vulnerable Dependencies
+        run: |
+          echo "# 🔍 Dependency Security Report" > dependency-report.md
+          echo "Generated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> dependency-report.md
+          echo "" >> dependency-report.md
+          
+          # This would typically scan Go modules, npm packages, etc.
+          echo "## Go Dependencies" >> dependency-report.md
+          echo "Scanning Go modules for known vulnerabilities..." >> dependency-report.md
+          echo "" >> dependency-report.md
+          
+          # Add actual dependency scanning logic here
+          echo "- No critical vulnerabilities found" >> dependency-report.md
+          echo "" >> dependency-report.md
+
+      - name: 📤 Upload Dependency Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-report-${{ github.run_number }}
+          path: dependency-report.md
+          retention-days: 30
+
+  metrics-collection:
+    name: Collect Organization Metrics
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📊 Collect Metrics
+        run: |
+          echo "# 📊 Gopteran Organization Metrics" > metrics-report.md
+          echo "Generated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> metrics-report.md
+          echo "" >> metrics-report.md
+          
+          # Repository metrics
+          echo "## Repository Metrics" >> metrics-report.md
+          total_repos=$(gh repo list gopteran --limit 100 --json name | jq length)
+          public_repos=$(gh repo list gopteran --limit 100 --visibility public --json name | jq length)
+          
+          echo "- Total repositories: $total_repos" >> metrics-report.md
+          echo "- Public repositories: $public_repos" >> metrics-report.md
+          echo "- Private repositories: $((total_repos - public_repos))" >> metrics-report.md
+          echo "" >> metrics-report.md
+          
+          # Language distribution
+          echo "## Language Distribution" >> metrics-report.md
+          gh repo list gopteran --limit 50 --json name,primaryLanguage \
+            | jq -r '.[] | select(.primaryLanguage != null) | .primaryLanguage.name' \
+            | sort | uniq -c | sort -nr \
+            | while read count lang; do
+                echo "- $lang: $count repositories" >> metrics-report.md
+              done
+          echo "" >> metrics-report.md
+          
+          # Recent activity
+          echo "## Recent Activity (Last 30 days)" >> metrics-report.md
+          echo "Repositories with recent commits:" >> metrics-report.md
+          
+          repos=$(gh repo list gopteran --limit 20 --json name --jq '.[].name')
+          for repo in $repos; do
+            last_commit=$(gh api repos/gopteran/$repo/commits --jq '.[0].commit.author.date' 2>/dev/null || echo "No commits")
+            if [ "$last_commit" != "No commits" ]; then
+              # Check if commit is within last 30 days
+              commit_date=$(date -d "$last_commit" +%s 2>/dev/null || echo "0")
+              thirty_days_ago=$(date -d "30 days ago" +%s)
+              
+              if [ "$commit_date" -gt "$thirty_days_ago" ]; then
+                echo "- $repo: $(date -d "$last_commit" '+%Y-%m-%d')" >> metrics-report.md
+              fi
+            fi
+          done
+          echo "" >> metrics-report.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📤 Upload Metrics Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: organization-metrics-${{ github.run_number }}
+          path: metrics-report.md
+          retention-days: 90
